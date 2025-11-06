@@ -1,7 +1,7 @@
 {
   "name": "budzy-slack-bot",
   "version": "1.0.0",
-  "description": "A friendly Slack onboarding bot using Bolt for JavaScript.",
+  "description": "A friendly Slack onboarding bot (Bolt + Express) deployed on Render.",
   "main": "app.js",
   "type": "module",
   "engines": {
@@ -13,16 +13,11 @@
   },
   "dependencies": {
     "@slack/bolt": "^3.17.1",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
-  }
-}
-{
-  "dependencies": {
-    "@slack/bolt": "^3.17.1",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2"
-  }
+  },
+  "license": "MIT"
 }
