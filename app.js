@@ -1,54 +1,67 @@
-import 'dotenv/config';
-import express from 'express';
+import express from "express";
+import { App, ExpressReceiver } from "@slack/bolt";
 
-const app = express();
+const PORT = process.env.PORT || 3000;
 
-// health & root
-app.get('/', (_req, res) => res.status(200).send('Budzy is alive ✅'));
-app.get('/healthz', (_req, res) => res.status(200).send('ok'));
+// Never crash on missing env — log and still boot HTTP for health checks
+const hasSlackCreds = !!(process.env.SLACK_BOT_TOKEN && process.env.SLACK_SIGNING_SECRET);
 
-// Lazy-load Bolt only when env vars are present
-const hasSlackEnv = !!(process.env.SLACK_SIGNING_SECRET && process.env.SLACK_BOT_TOKEN);
+const receiver = new ExpressReceiver({
+  signingSecret: process.env.SLACK_SIGNING_SECRET || "missing",
+  endpoints: "/slack/events"
+});
 
-if (hasSlackEnv) {
-  const { App, ExpressReceiver } = await import('@slack/bolt');
-  const receiver = new ExpressReceiver({
-    signingSecret: process.env.SLACK_SIGNING_SECRET,
-    endpoints: '/slack/events'
-  });
-  const bolt = new App({ token: process.env.SLACK_BOT_TOKEN, receiver });
+const app = new App({
+  token: process.env.SLACK_BOT_TOKEN || "xoxb-missing",
+  receiver
+});
 
-  // minimal handlers
-  bolt.command('/budzy', async ({ ack, respond, command }) => {
-    await ack();
-    await respond({ text: `Hi <@${command.user_id}>! Budzy here.`, response_type: 'ephemeral' });
-  });
+// Basic handlers — safe even if tokens are placeholders
+app.command("/hello", async ({ ack, respond }) => {
+  await ack();
+  await respond("👋 Hey! Your bot is wired up.");
+});
 
-  bolt.event('app_home_opened', async ({ client, event }) => {
+app.event("app_home_opened", async ({ event, client }) => {
+  try {
     await client.views.publish({
       user_id: event.user,
       view: {
-        type: 'home',
+        type: "home",
         blocks: [
-          { type: 'header', text: { type: 'plain_text', text: 'Welcome to Budzy 👋' } },
-          { type: 'section', text: { type: 'mrkdwn', text: 'Use `/budzy` to say hi!' } }
+          { type: "section", text: { type: "mrkdwn", text: "*Welcome to Budzy!*" } },
+          { type: "section", text: { type: "mrkdwn", text: "Try `/hello` in any channel." } }
         ]
       }
     });
-  });
+  } catch (e) {}
+});
 
-  bolt.event('team_join', async ({ event, client }) => {
-    await client.chat.postMessage({ channel: event.user.id, text: `Welcome <@${event.user.id}> 🎉` });
-  });
+app.event("team_join", async ({ event, client }) => {
+  try {
+    await client.chat.postMessage({
+      channel: event.user.id,
+      text: "🎉 Welcome aboard! Try `/hello` to test me."
+    });
+  } catch (e) {}
+});
 
-  // mount Bolt receiver into our express app
-  app.use(receiver.app);
-} else {
-  // fallback route so Slack verification shows something sane
-  app.post('/slack/events', (_req, res) => {
-    res.status(503).send('Slack not configured yet');
-  });
-}
+// Express health route
+receiver.app.get("/health", (_req, res) => {
+  res.setHeader("content-type", "application/json");
+  res.status(200).send(JSON.stringify({ ok: true, hasSlackCreds }));
+});
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`⚡️ Budzy is running on port ${port} (Slack ${hasSlackEnv ? 'ON' : 'OFF'})`));
+// Boot server
+(async () => {
+  try {
+    await app.start(PORT);
+    console.log(`✅ App listening on port ${PORT}`);
+  } catch (err) {
+    console.error("Startup error, but keeping server alive:", err);
+    const expressOnly = express();
+    expressOnly.get("/health", (_req, res) => res.status(200).send({ ok: true, bolt: false }));
+    expressOnly.all("*", (_req, res) => res.status(200).send("Up"));
+    expressOnly.listen(PORT, () => console.log(`Express-only server on ${PORT}`));
+  }
+})();
