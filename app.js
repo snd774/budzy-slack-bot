@@ -1,9 +1,7 @@
-import express from "express";
-import { App, ExpressReceiver } from "@slack/bolt";
+const express = require("express");
+const { App, ExpressReceiver } = require("@slack/bolt");
 
 const PORT = process.env.PORT || 3000;
-
-// Never crash on missing env — log and still boot HTTP for health checks
 const hasSlackCreds = !!(process.env.SLACK_BOT_TOKEN && process.env.SLACK_SIGNING_SECRET);
 
 const receiver = new ExpressReceiver({
@@ -16,12 +14,13 @@ const app = new App({
   receiver
 });
 
-// Basic handlers — safe even if tokens are placeholders
+// Slash command: /hello
 app.command("/hello", async ({ ack, respond }) => {
   await ack();
   await respond("👋 Hey! Your bot is wired up.");
 });
 
+// App Home
 app.event("app_home_opened", async ({ event, client }) => {
   try {
     await client.views.publish({
@@ -34,25 +33,26 @@ app.event("app_home_opened", async ({ event, client }) => {
         ]
       }
     });
-  } catch (e) {}
+  } catch (_) {}
 });
 
+// New member welcome
 app.event("team_join", async ({ event, client }) => {
   try {
     await client.chat.postMessage({
       channel: event.user.id,
       text: "🎉 Welcome aboard! Try `/hello` to test me."
     });
-  } catch (e) {}
+  } catch (_) {}
 });
 
-// Express health route
+// Health route
 receiver.app.get("/health", (_req, res) => {
   res.setHeader("content-type", "application/json");
   res.status(200).send(JSON.stringify({ ok: true, hasSlackCreds }));
 });
 
-// Boot server
+// Boot
 (async () => {
   try {
     await app.start(PORT);
