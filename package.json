@@ -1,9 +1,8 @@
 {
   "name": "budzy-slack-bot",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
-  "type": "module",
-  "engines": { "node": ">=18.x" },
+  "engines": { "node": "18.x" },
   "scripts": {
     "start": "node app.js"
   },
