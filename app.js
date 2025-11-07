@@ -14,7 +14,7 @@ const app = new App({
   receiver
 });
 
-// Slash command: /hello
+// Slash: /hello
 app.command("/hello", async ({ ack, respond }) => {
   await ack();
   await respond("👋 Hey! Your bot is wired up.");
@@ -36,7 +36,7 @@ app.event("app_home_opened", async ({ event, client }) => {
   } catch (_) {}
 });
 
-// New member welcome
+// New member DM
 app.event("team_join", async ({ event, client }) => {
   try {
     await client.chat.postMessage({
@@ -46,7 +46,7 @@ app.event("team_join", async ({ event, client }) => {
   } catch (_) {}
 });
 
-// Health route
+// Health
 receiver.app.get("/health", (_req, res) => {
   res.setHeader("content-type", "application/json");
   res.status(200).send(JSON.stringify({ ok: true, hasSlackCreds }));
